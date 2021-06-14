@@ -21,6 +21,9 @@ class SmartStitch(Tk):
         self.output_type = StringVar(value=".jpg")
         self.progress = ""
         self.actionbutton = ""
+        self.batchButton = ""
+        self.batch = False
+        self.start = 0
 
         # Componant Setup
         self.SetupWindow()
@@ -84,15 +87,29 @@ class SmartStitch(Tk):
         browse_field = ttk.Entry(browse_frame, textvariable=self.input_folder)
         browse_field.bind("<Any-KeyRelease>", self.UpdateOutputFolder)
         browse_button = ttk.Button(browse_frame, text = 'Browse', command=self.BrowseToCommand)
+        self.batchButton = ttk.Button(browse_frame, text = 'Batch', command=self.BatchToCommand)
+        style = ttk.Style()
+        style.configure("BW.TButton", foreground="green", background="green")
         output_label = ttk.Label(browse_frame, text = 'Output Path')
         output_field = ttk.Entry(browse_frame, textvariable=self.output_folder)
         browse_label.grid(row = 0,column = 0, sticky="new")
         browse_field.grid(row = 1, column = 0, pady=(2,0), sticky="new")
         browse_button.grid(row = 1,column = 1, padx=(15, 0), sticky="ne")
+        self.batchButton.grid(row = 1,column = 1, pady=(30, 0), padx=(15, 0), sticky="ne")
         output_label.grid(row = 2, column = 0, sticky="new")
         output_field.grid(row = 3, column = 0, columnspan=2, pady=(2,0), sticky="new")
         browse_frame.columnconfigure(0, weight=1)
         return browse_frame
+
+    def BatchToCommand(self):
+        if(self.batch):
+            self.batch = False
+            self.batchButton['style'] = ""
+        else:
+            self.batch = True
+            self.batchButton['style'] = "BW.TButton"
+        
+        self.batchButton.update()
 
     def BrowseToCommand(self):
         # Allow user to select a directory and updates input_folder and output_folder
@@ -163,18 +180,30 @@ class SmartStitch(Tk):
         action_frame.columnconfigure(2, weight=1)
         return action_frame
 
-    def LoadImages(self):
+    def LoadImages(self, folderInput):
         # Loads all image files in a given folder into a list of pillow image objects
         images = []
-        if (self.input_folder.get() == ""):
+        if (folderInput == ""):
             return images
-        folder = os.path.abspath(str(self.input_folder.get()))
+        folder = os.path.abspath(str(folderInput))
         for imgFile in os.listdir(folder):
             if imgFile.endswith(('.png', '.webp', '.jpg', '.jpeg', '.bmp', '.tiff', '.tga')):
                 imgPath = os.path.join(folder, imgFile)
                 image = pil.open(imgPath)
                 images.append(image)
         return images
+    def Loadfolders(self):
+        # Loads all image files in a given folder into a list of pillow image objects
+        folders = []
+        if (self.input_folder.get() == ""):
+            return folders
+        folder_path = os.path.abspath(str(self.input_folder.get()))
+        for subdir, dirs, files in os.walk(folder_path):
+            for folder in dirs:
+                if not folder.endswith(('[Stitched]')):
+                    path = os.path.join(folder_path, folder)
+                    folders.append(path)
+        return folders
 
     def CombineVertically(self, images):
         # All this does is combine all the files into a single image in the memory.
@@ -240,9 +269,12 @@ class SmartStitch(Tk):
         images.append(split_image)
         return images
 
-    def SaveData(self, data):
+    def SaveData(self, data, folder):
         # Saves the given images/date in the output folder!
-        new_folder = str(self.output_folder.get())
+        if (self.batch):
+            new_folder = str(folder + " [Stitched]")
+        else:
+            new_folder = str(self.output_folder.get())
         if not os.path.exists(new_folder):
             os.makedirs(new_folder)
         imageIndex = 1
@@ -267,11 +299,21 @@ class SmartStitch(Tk):
             self.status.set("Idle - Senstivity value was not set!")
             self.actionbutton['state'] = "normal"
             return
-        start = time.time()
-        self.status.set("Working - Loading Image Files!")
-        self.progress['value'] = 0
+        self.start = time.time()
+        if (self.batch):
+            self.status.set("Working - Loading Folders!")
+            self.progress['value'] = 0
+            folders = self.Loadfolders()
+            for folder in folders:
+                self.StitchOne(folder)
+        else:
+            self.status.set("Working - Loading Image Files!")
+            self.progress['value'] = 0 
+            self.StitchOne(self.input_folder.get())
+
+    def StitchOne(self, folder):
         Tk.update_idletasks(self)
-        images = self.LoadImages()
+        images = self.LoadImages(folder)
         if len(images) == 0:
             self.status.set("Idle - No Image Files Found!")
             self.actionbutton['state'] = "normal"
@@ -287,9 +329,9 @@ class SmartStitch(Tk):
         self.status.set("Working - Saving Finalized Images!")
         self.progress['value'] = 40
         Tk.update_idletasks(self)
-        self.SaveData(final_images)
+        self.SaveData(final_images, folder)
         end = time.time()
-        delta = end - start
+        delta = end - self.start
         self.status.set("Idle - Files successfully stitched in " +  str(f'{delta:.2}') + "sec!")
         self.progress['value'] = 100
         self.actionbutton['state'] = "normal"
