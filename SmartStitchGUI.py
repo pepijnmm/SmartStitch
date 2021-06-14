@@ -191,6 +191,7 @@ class SmartStitch(Tk):
                 newNewImage.paste(new_image, (0, 0)) #x1 etc. still need to fill in
                 image = image.resize((round(image.size[0]*widthDifferce), round(image.size[1]*widthDifferce)),1)
                 new_image = newNewImage
+                new_image_height = new_image.size[1]
             new_image.paste(image, (0, combine_offset))
             combine_offset += image.size[1]
         return new_image
