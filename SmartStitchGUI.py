@@ -185,6 +185,12 @@ class SmartStitch(Tk):
 
         combine_offset = 0
         for image in images:
+            widthDifferce = 1/image.size[0]*new_image_width
+            if (widthDifferce != 1):
+                newNewImage = pil.new('RGB', (new_image_width, round(new_image_height+(image.size[1]*(widthDifferce-1)))))
+                newNewImage.paste(new_image, (0, 0)) #x1 etc. still need to fill in
+                image = image.resize((round(image.size[0]*widthDifferce), round(image.size[1]*widthDifferce)),1)
+                new_image = newNewImage
             new_image.paste(image, (0, combine_offset))
             combine_offset += image.size[1]
         return new_image
