@@ -186,7 +186,9 @@ class SmartStitch(Tk):
         if (folderInput == ""):
             return images
         folder = os.path.abspath(str(folderInput))
-        for imgFile in os.listdir(folder):
+        files = os.listdir(folder)
+        files.sort(key=lambda f: int(re.sub('\D', '', f)))
+        for imgFile in files:
             if imgFile.endswith(('.png', '.webp', '.jpg', '.jpeg', '.bmp', '.tiff', '.tga')):
                 imgPath = os.path.join(folder, imgFile)
                 image = pil.open(imgPath)
@@ -272,7 +274,8 @@ class SmartStitch(Tk):
     def SaveData(self, data, folder):
         # Saves the given images/date in the output folder!
         if (self.batch):
-            new_folder = str(folder + " [Stitched]")
+            new_folder = str(self.input_folder.get())
+            fileprefix = ''.join([n for n in os.path.basename(os.path.normpath(folder)) if n.isdigit()])
         else:
             new_folder = str(self.output_folder.get())
         if not os.path.exists(new_folder):
@@ -280,7 +283,10 @@ class SmartStitch(Tk):
         imageIndex = 1
         outputformat = self.output_type.get()
         for image in data:
-            image.save(new_folder + '/' + str(f'{imageIndex:02}') + outputformat, quality=100)
+            if (self.batch):
+                image.save(new_folder + '/' + fileprefix+"-"+str(f'{imageIndex:02}') + outputformat, quality=100)
+            else:
+                image.save(new_folder + '/'+str(f'{imageIndex:02}') + outputformat, quality=100)
             imageIndex += 1
             progress_value = 40 + (60 * imageIndex/len(data))
             self.progress['value'] = progress_value
