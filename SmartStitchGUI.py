@@ -6,6 +6,7 @@ import numpy as np
 import os
 import time
 import pickle
+import re
 
 class SmartStitch(Tk):
     def __init__(self, *args, **kwargs):
@@ -210,15 +211,23 @@ class SmartStitch(Tk):
     def CombineVertically(self, images):
         # All this does is combine all the files into a single image in the memory.
         widths, heights = zip(*(image.size for image in images))
-        new_image_width = max(widths)
+        new_image_width = min(widths)
         new_image_height = sum(heights)
         new_image = pil.new('RGB', (new_image_width, new_image_height))
 
         combine_offset = 0
         for image in images:
+            widthDifferce = 1/image.size[0]*new_image_width
+            if (widthDifferce != 1):
+                newNewImage = pil.new('RGB', (new_image_width, round(new_image_height+(image.size[1]*(widthDifferce-1)))))
+                newNewImage.paste(new_image, (0, 0)) #x1 etc. still need to fill in
+                image = image.resize((round(image.size[0]*widthDifferce), round(image.size[1]*widthDifferce)))
+                new_image = newNewImage
+                new_image_height = new_image.size[1]
             new_image.paste(image, (0, combine_offset))
             combine_offset += image.size[1]
         return new_image
+
 
     def SmartAdjust(self, combined_pixels, split_height, split_offset, senstivity):
         # Where the smart magic happens, compares pixels of each row, to decide if it's okay to cut there
@@ -275,7 +284,8 @@ class SmartStitch(Tk):
         # Saves the given images/date in the output folder!
         if (self.batch):
             new_folder = str(self.input_folder.get())
-            fileprefix = ''.join([n for n in os.path.basename(os.path.normpath(folder)) if n.isdigit()])
+            fileprefix = re.findall(r"([\d]{1,5}(\.\d){0,1})",os.path.basename(os.path.normpath(folder)))[0][0]
+            print(fileprefix);
         else:
             new_folder = str(self.output_folder.get())
         if not os.path.exists(new_folder):
