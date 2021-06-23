@@ -179,7 +179,7 @@ class SmartStitch(Tk):
     def CombineVertically(self, images):
         # All this does is combine all the files into a single image in the memory.
         widths, heights = zip(*(image.size for image in images))
-        new_image_width = max(widths)
+        new_image_width = min(widths)
         new_image_height = sum(heights)
         new_image = pil.new('RGB', (new_image_width, new_image_height))
 
@@ -189,7 +189,7 @@ class SmartStitch(Tk):
             if (widthDifferce != 1):
                 newNewImage = pil.new('RGB', (new_image_width, round(new_image_height+(image.size[1]*(widthDifferce-1)))))
                 newNewImage.paste(new_image, (0, 0)) #x1 etc. still need to fill in
-                image = image.resize((round(image.size[0]*widthDifferce), round(image.size[1]*widthDifferce)),1)
+                image = image.resize((round(image.size[0]*widthDifferce), round(image.size[1]*widthDifferce)))
                 new_image = newNewImage
                 new_image_height = new_image.size[1]
             new_image.paste(image, (0, combine_offset))
