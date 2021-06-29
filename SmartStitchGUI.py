@@ -7,6 +7,7 @@ import os
 import time
 import pickle
 import re
+import sys
 
 class SmartStitch(Tk):
     def __init__(self, *args, **kwargs):
