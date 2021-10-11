@@ -1,111 +1,57 @@
-# Smart Stitchy By MechTechnology
-# How to you use:
-# 1. Put your raws in folders in the same directory as this script
-# 2. Go the very end of this script and add a call to the function
-# SaveSplitVertical(Foldername, AverageImgHeight, Senstivity)
-# Example if i put my raw in a folder called Chapter 40 and want them to be 4300 height on average (90% is a good senstivity)
-# SaveSplitVertical(Chapter 40, 4300, 90)
-# output will be in the (foldername + [Stitched])
-#
-# that is all, you can add multiple calls to different folder to do bigger batchs at once
+import SmartStitchCore as ssc
+import argparse
 
-from PIL import Image as pil
-import numpy as np
-import os
+def run_stitch_process(input_folder, split_height=5000, output_files_type=".png", batch_mode=False, width_enforce_type=0, custom_width=720, senstivity=90, ignorable_pixels=0, scan_line_step=5):
+  """Runs the stitch process using the SS core functions, and updates the progress on the UI."""
+  output_folder = input_folder + " [Stitched]"
+  print("Process Starting Up")
+  folder_paths = ssc.get_folder_paths(batch_mode, input_folder, output_folder)
+  # Sets the number of folders as a global variable, so it can be used in other update related functions.
+  num_of_inputs = len(folder_paths)
+  if (num_of_inputs == 0):
+    print("Batch Mode Enabled, No Suitable Input Folders Found!")
+    return 
+  for path in folder_paths:
+    print("Working - Loading Image Files!")
+    images = ssc.load_images(path[0])
+    if len(images) == 0 and num_of_inputs == 1:
+      print("No Image Files Found!")
+      return
+    elif len(images) == 0:
+      print(path[0] + " Has been skipped, No Image Files Found!")
+      continue
+    # The reason index is used here is because the core functions use intgers to switch between enforcement modes/types
+    if width_enforce_type == 0:
+      print("Working - Combining Image Files!")
+    else:
+      print("Working - Resizing & Combining Image Files!")
+    resized_images = ssc.resize_images(images, width_enforce_type, custom_width)
+    combined_image = ssc.combine_images(resized_images)
+    print("Working - Slicing Combined Image into Finalized Images!")
+    final_images = ssc.split_image(combined_image, split_height, senstivity, ignorable_pixels, scan_line_step)
+    print("Working - Saving Finalized Images!")
+    ssc.save_data(final_images, path[1], output_files_type)
+    print(path[1] + " Has Been Successfully Complete.")
+    print("Process Ended")
 
-def LoadImages(folder):
-    images = []
-    for imgFile in os.listdir(folder):
-        imgPath = folder + '/' + imgFile
-        image = pil.open(imgPath)
-        if image is not None:
-            images.append(image)
-    return images
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--input_folder", "-i", type=str, required=True, help='Sets the path of Input Folder')
+  parser.add_argument("--split_height", "-H", type=int, default=5000, help='Sets the value of the Rough Panel Height')
+  parser.add_argument("--output_files_type", "-t", type=str, default=".png", choices=['.png', '.jpg', '.webp', '.bmp', '.tiff', '.tga'], help='Sets the type/format of the Output Image Files')
+  parser.add_argument("--batch_mode", "-b", dest='batch_mode', action='store_true', help='Enables Batch Mode')
+  parser.add_argument("--width_enforce_type", "-w", type=int, default=0, choices=[0, 1, 2], help='Selects the Ouput Image Width Enforcement Mode')
+  parser.add_argument("--custom_width", "-cw", type=int, default=720, help='Selects the Custom Image Width For Width Enforcement Mode 2')
+  parser.add_argument("--senstivity", "-s", type=int, default=90, choices=range(0,101), metavar="[0-100]", help='Sets the Object Detection Senstivity Percentage')
+  parser.add_argument("--ignorable_pixels", "-ip", type=int, default=0, help='Sets the value of Ignorable Border Pixels')
+  parser.add_argument("--scan_line_step", "-sl", type=int, default=5, choices=range(1,21), metavar="[1-20]", help='Sets the value of Scan Line Step')
+  parser.set_defaults(batch_mode=False)
 
-def CombineVertically(folder):
-    images = LoadImages(folder)
-    
-    widths, heights = zip(*(image.size for image in images))
-    new_image_width = max(widths)
-    new_image_height = sum(heights)
-    new_image = pil.new('RGB', (new_image_width, new_image_height))
+  args = parser.parse_args()
+  run_stitch_process(args.input_folder, args.split_height, args.output_files_type, args.batch_mode, args.width_enforce_type, args.custom_width, args.senstivity, args.ignorable_pixels, args.scan_line_step)
 
-    combine_offset = 0
-    for image in images:
-        new_image.paste(image, (0, combine_offset))
-        combine_offset += image.size[1]
-    return new_image
+if __name__ == '__main__':
+  main()
 
-def SmartAdjust(combined_pixels, split_height, split_offset, senstivity):
-    AdjustSensitivity = int(255 * (1-(senstivity/100)))
-    adjust_in_progress = True
-    new_split_height = split_height
-    countdown = True
-    while (adjust_in_progress):
-        adjust_in_progress = False
-        split_row = split_offset + new_split_height
-        pixel_row = combined_pixels[split_row]
-        prev_pixel = pixel_row[0]
-        for x in range(1, len(pixel_row)):
-            current_pixel = pixel_row[x]
-            diff_pixel = current_pixel - prev_pixel
-            if (diff_pixel > AdjustSensitivity):
-                if (countdown):
-                    new_split_height -= 1
-                else:
-                    new_split_height += 1
-                adjust_in_progress = True
-                break
-            current_pixel = prev_pixel
-        if (new_split_height < 0.5*split_height):
-            new_split_height = split_height
-            countdown = False
-            adjust_in_progress = True
-    return new_split_height
-
-
-def SplitVertical(folder, split_height, senstivity=90):
-    combined_img = CombineVertically(folder)
-    max_width = combined_img.size[0]
-    max_height = combined_img.size[1]
-    combined_pixels = np.array(combined_img.convert('L'))
-    images = []
-    split_offset = 0
-    while((split_offset + split_height) < max_height):
-        new_split_height = SmartAdjust(combined_pixels, split_height, split_offset, senstivity)
-        split_image = pil.new('RGB', (max_width, new_split_height))
-        split_image.paste(combined_img,(0,-split_offset))
-        split_offset += new_split_height
-        images.append(split_image)
-    
-    #Final image
-    split_image = pil.new('RGB', (max_width, max_height-split_offset))
-    split_image.paste(combined_img,(0,-split_offset))
-    images.append(split_image)
-
-    print("Number of Output Page:", len(images))
-    return images
-
-def SaveData(folder, data, single_file = False):
-    new_folder = folder + " [Stitched]"
-    if not os.path.exists(new_folder):
-        os.makedirs(new_folder)
-    
-    if (single_file):
-        data.save(new_folder + '/Combined.png')
-        return
-
-    imageIndex = 1
-    for image in data:
-        image.save(new_folder + '/' + str(f'{imageIndex:02}') + '.png')
-        imageIndex += 1
-    return
-
-def SaveSplitVertical(folder, split_height, senstivity=90):
-    data = SplitVertical(folder, split_height, senstivity)
-    SaveData(folder, data)
-    print("Files Successfully Stitched!")
-
-
-#Here Just Call SaveSplitVertical(Foldername, AverageImgHeight, Senstivity)
-SaveSplitVertical("Chapter 40", 4300, 90)
+# Example of a basic run => python SmartStitchConsole.py -i "Review me" -H 7500 -t ".png" -b
+# This will Run the application on for input_folder of "./Review me" with split_height of 7500 and output_tyoe of ".png" and batch_mode enabled
