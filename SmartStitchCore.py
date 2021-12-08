@@ -3,6 +3,7 @@ from natsort import natsorted
 import numpy as np
 import os
 import subprocess
+import re
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def get_folder_paths(batch_mode_enabled, given_input_folder, given_output_folder):
@@ -17,7 +18,7 @@ def get_folder_paths(batch_mode_enabled, given_input_folder, given_output_folder
     for fileName in os.listdir(given_input_folder):
       filePath = os.path.join(given_input_folder, fileName)
       if os.path.isdir(filePath):
-        folder_paths.append((filePath, os.path.join(given_output_folder, fileName + " [Stitched]")))
+        folder_paths.append((filePath, os.path.join(given_output_folder, re.sub("[^0-9|\-|.]", "", fileName) + " [Stitched]")))
   return folder_paths
 
 def load_images(foldername):
@@ -137,7 +138,7 @@ def save_data(data, foldername, outputformat, progress_func = None):
   for image in data:
     if (progress_func != None):
       progress_func(len(data))
-    image.save(new_folder + '/' + str(f'{imageIndex:02}') + outputformat, quality=100)
+    image.save(new_folder + '/' + re.sub("[^0-9|\-|.]", "", os.path.basename(os.path.normpath(foldername)))+"-" + str(f'{imageIndex:02}') + outputformat, quality=100)
     imageIndex += 1
   return
 
